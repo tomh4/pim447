@@ -11,6 +11,7 @@
 #include <zephyr/logging/log.h>
 #include <zmk/events/activity_state_changed.h>
 #include <math.h>
+#include <zmk/keymap.h>
 
 #include "pimoroni_pim447.h"
 #include "pimoroni_pim447_led.h"  // For function declarations
