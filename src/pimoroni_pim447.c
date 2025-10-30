@@ -11,7 +11,6 @@
 #include <zephyr/logging/log.h>
 #include <zmk/events/activity_state_changed.h>
 #include <math.h>
-#include <zmk/keymap.h>
 
 #include "pimoroni_pim447.h"
 #include "pimoroni_pim447_led.h"  // For function declarations
@@ -40,21 +39,6 @@ static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config 
 static int previous_x = 0;
 static int previous_y = 0;
 
-#define AUTOMOUSE_LAYER (DT_PROP(DT_DRV_INST(0), automouse_layer))
-
-struct k_timer automouse_layer_timer;
-static bool automouse_triggered = false;
-static void activate_automouse_layer() {
-    automouse_triggered = true;
-    zmk_keymap_layer_activate(AUTOMOUSE_LAYER);
-    k_timer_start(&automouse_layer_timer, K_MSEC(CONFIG_ZMK_PIMORONI_PIM447_AUTOMOUSE_TIMEOUT_MS), K_NO_WAIT);
-}
-
-static void deactivate_automouse_layer(struct k_timer *timer) {
-    automouse_triggered = false;
-    zmk_keymap_layer_deactivate(AUTOMOUSE_LAYER);
-}
-K_TIMER_DEFINE(automouse_layer_timer, deactivate_automouse_layer, NULL);
 
 void pim447_enable_sleep(const struct device *dev) {
     struct pimoroni_pim447_data *data = dev->data;
@@ -282,9 +266,6 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 
     // Update LEDs based on movement
     if (speed > 0) {
-        if (AUTOMOUSE_LAYER > 0) {
-            activate_automouse_layer();
-        }
 
         // Update hue or brightness based on speed
         data->hue += speed * PIM447_HUE_INCREMENT_FACTOR;
