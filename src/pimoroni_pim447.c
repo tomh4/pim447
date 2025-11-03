@@ -13,7 +13,7 @@
 #include <math.h>
 
 #include "pimoroni_pim447.h"
-#include "pimoroni_pim447_led.h"  // For function declarations
+#include "pimoroni_pim447_led.h" // For function declarations
 
 LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
@@ -25,7 +25,8 @@ volatile uint8_t PIM447_SCROLL_MAX_TIME = 1;
 volatile float PIM447_SCROLL_SMOOTHING_FACTOR = 0.5f;
 volatile float PIM447_HUE_INCREMENT_FACTOR = 0.3f;
 
-enum pim447_mode {
+enum pim447_mode
+{
     PIM447_MODE_MOUSE,
     PIM447_MODE_SCROLL
 };
@@ -39,15 +40,16 @@ static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config 
 static int previous_x = 0;
 static int previous_y = 0;
 
-
-void pim447_enable_sleep(const struct device *dev) {
+void pim447_enable_sleep(const struct device *dev)
+{
     struct pimoroni_pim447_data *data = dev->data;
 
     const struct pimoroni_pim447_config *config = data->dev->config;
     uint8_t ctrl_reg_value;
 
     // Read the current control register value
-    if (i2c_reg_read_byte_dt(&config->i2c, MSK_CTRL_SLEEP, &ctrl_reg_value) != 0) {
+    if (i2c_reg_read_byte_dt(&config->i2c, MSK_CTRL_SLEEP, &ctrl_reg_value) != 0)
+    {
         LOG_ERR("Failed to read PIM447 control register");
         return;
     }
@@ -55,7 +57,8 @@ void pim447_enable_sleep(const struct device *dev) {
     ctrl_reg_value |= MSK_CTRL_SLEEP; // Set the SLEEP bit
 
     // Write the modified value back
-    if (i2c_reg_write_byte_dt(&config->i2c, MSK_CTRL_SLEEP, ctrl_reg_value) != 0) {
+    if (i2c_reg_write_byte_dt(&config->i2c, MSK_CTRL_SLEEP, ctrl_reg_value) != 0)
+    {
         LOG_ERR("Failed to write PIM447 control register");
         return;
     }
@@ -65,14 +68,16 @@ void pim447_enable_sleep(const struct device *dev) {
     LOG_DBG("PIM447 sleep enabled");
 }
 
-void pim447_disable_sleep(const struct device *dev) {
+void pim447_disable_sleep(const struct device *dev)
+{
     struct pimoroni_pim447_data *data = dev->data;
 
     const struct pimoroni_pim447_config *config = data->dev->config;
     uint8_t ctrl_reg_value;
 
     // Read the current control register value
-    if (i2c_reg_read_byte_dt(&config->i2c, MSK_CTRL_SLEEP, &ctrl_reg_value) != 0) {
+    if (i2c_reg_read_byte_dt(&config->i2c, MSK_CTRL_SLEEP, &ctrl_reg_value) != 0)
+    {
         LOG_ERR("Failed to read PIM447 control register");
         return;
     }
@@ -80,7 +85,8 @@ void pim447_disable_sleep(const struct device *dev) {
     ctrl_reg_value &= ~MSK_CTRL_SLEEP; // Clear the SLEEP bit
 
     // Write the modified value back
-    if (i2c_reg_write_byte_dt(&config->i2c, MSK_CTRL_SLEEP, ctrl_reg_value) != 0) {
+    if (i2c_reg_write_byte_dt(&config->i2c, MSK_CTRL_SLEEP, ctrl_reg_value) != 0)
+    {
         LOG_ERR("Failed to write PIM447 control register");
         return;
     }
@@ -90,28 +96,33 @@ void pim447_disable_sleep(const struct device *dev) {
     LOG_DBG("PIM447 sleep disabled");
 }
 
-void pim447_toggle_mode(void) {
+void pim447_toggle_mode(void)
+{
     current_mode = (current_mode == PIM447_MODE_MOUSE) ? PIM447_MODE_SCROLL : PIM447_MODE_MOUSE;
     // Optional: Add logging or LED indication here to show the current mode
     LOG_DBG("PIM447 mode switched to %s", (current_mode == PIM447_MODE_MOUSE) ? "MOUSE" : "SCROLL");
 }
 
 // Event handler for activity state changes
-static int activity_state_changed_handler(const zmk_event_t *eh) {
+static int activity_state_changed_handler(const zmk_event_t *eh)
+{
     struct zmk_activity_state_changed *ev = as_zmk_activity_state_changed(eh);
 
     // Get the device pointer
     const struct device *dev = DEVICE_DT_GET(DT_NODELABEL(pimoroni_pim447));
-    if (!device_is_ready(dev)) {
+    if (!device_is_ready(dev))
+    {
         LOG_ERR("PIM447 device not ready");
         return -ENODEV;
     }
 
-    if (ev->state == ZMK_ACTIVITY_IDLE) {
+    if (ev->state == ZMK_ACTIVITY_IDLE)
+    {
         pim447_enable_sleep(dev);
     }
 
-    if (ev->state != ZMK_ACTIVITY_IDLE) {
+    if (ev->state != ZMK_ACTIVITY_IDLE)
+    {
         pim447_disable_sleep(dev);
     }
 
@@ -121,16 +132,19 @@ static int activity_state_changed_handler(const zmk_event_t *eh) {
 ZMK_LISTENER(idle_listener, activity_state_changed_handler);
 ZMK_SUBSCRIPTION(idle_listener, zmk_activity_state_changed);
 
-static void pim447_process_movement(struct pimoroni_pim447_data *data, int delta_x, int delta_y, uint32_t time_between_interrupts, int max_speed, int max_time, float smoothing_factor) {
+static void pim447_process_movement(struct pimoroni_pim447_data *data, int delta_x, int delta_y, uint32_t time_between_interrupts, int max_speed, int max_time, float smoothing_factor)
+{
     float scaling_factor = 1.0f;
-    if (time_between_interrupts < max_time) {
+    if (time_between_interrupts < max_time)
+    {
         // Exponential scaling calculation
         float exponent = -3.0f * (float)time_between_interrupts / max_time; // Adjust -3.0f for desired curve
         scaling_factor = 1.0f + (max_speed - 1.0f) * expf(exponent);
     }
 
     // Apply scaling based on mode
-    if (current_mode == PIM447_MODE_SCROLL) {
+    if (current_mode == PIM447_MODE_SCROLL)
+    {
         scaling_factor *= 2.5f; // Example: Increase scaling for scroll mode
     }
 
@@ -149,7 +163,8 @@ static void pim447_process_movement(struct pimoroni_pim447_data *data, int delta
     data->previous_y = data->smoothed_y;
 }
 
-static void pimoroni_pim447_work_handler(struct k_work *work) {
+static void pimoroni_pim447_work_handler(struct k_work *work)
+{
     struct pimoroni_pim447_data *data = CONTAINER_OF(work, struct pimoroni_pim447_data, irq_work);
     const struct pimoroni_pim447_config *config = data->dev->config;
     const struct device *dev = data->dev;
@@ -158,10 +173,10 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 
     LOG_INF("PIM447 work handler triggered");
 
- 
     /* Read movement data and switch state */
     ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
-    if (ret) {
+    if (ret)
+    {
         LOG_ERR("Failed to read movement data from PIM447: %d", ret);
         return;
     }
@@ -177,48 +192,60 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // DOWN - UP
 
     /* Report movement immediately if non-zero */
-    if (delta_x != 0 || delta_y != 0) {
-        if (current_mode == PIM447_MODE_MOUSE) {
-            pim447_process_movement(data, delta_x, delta_y, time_between_interrupts, PIM447_MOUSE_MAX_SPEED, PIM447_MOUSE_MAX_TIME, PIM447_MOUSE_SMOOTHING_FACTOR); 
-            
-            /* Report relative X movement */
-            if (delta_x != 0) {
-                ret = input_report_rel(data->dev, INPUT_REL_X, data->smoothed_x, true, K_NO_WAIT);
-                if (ret) {
-                    LOG_ERR("Failed to report delta_x: %d", ret);
-                } else {
-                    LOG_DBG("Reported delta_x: %d", data->smoothed_x);
-                }
-            }
+    if (delta_x != 0 || delta_y != 0)
+    {
+        if (current_mode == PIM447_MODE_MOUSE)
+        {
+            pim447_process_movement(data, delta_x, delta_y, time_between_interrupts, PIM447_MOUSE_MAX_SPEED, PIM447_MOUSE_MAX_TIME, PIM447_MOUSE_SMOOTHING_FACTOR);
+            // Report X and Y syncrhonously to reduce X/Y Choppiness
 
-            /* Report relative Y movement */
-            if (delta_y != 0) {
-                ret = input_report_rel(data->dev, INPUT_REL_Y, data->smoothed_y, true, K_NO_WAIT);
-                if (ret) {
-                    LOG_ERR("Failed to report delta_y: %d", ret);
-                } else {
-                    LOG_DBG("Reported delta_y: %d", data->smoothed_y);
-                }
+            ret = input_report_rel(data->dev, INPUT_REL_X, data->smoothed_x, false, K_FOREVER);
+            if (ret)
+            {
+                LOG_ERR("Failed to report delta_x: %d", ret);
             }
-        } else if (current_mode == PIM447_MODE_SCROLL) {
-            pim447_process_movement(data, delta_x, delta_y, time_between_interrupts, PIM447_SCROLL_MAX_SPEED, PIM447_SCROLL_MAX_TIME, PIM447_SCROLL_SMOOTHING_FACTOR); 
-            
+            else
+            {
+                LOG_DBG("Reported delta_x: %d", data->smoothed_x);
+            }
+            ret = input_report_rel(data->dev, INPUT_REL_Y, data->smoothed_y, true, K_FOREVER);
+            if (ret)
+            {
+                LOG_ERR("Failed to report delta_y: %d", ret);
+            }
+            else
+            {
+                LOG_DBG("Reported delta_y: %d", data->smoothed_y);
+            }
+        }
+        else if (current_mode == PIM447_MODE_SCROLL)
+        {
+            pim447_process_movement(data, delta_x, delta_y, time_between_interrupts, PIM447_SCROLL_MAX_SPEED, PIM447_SCROLL_MAX_TIME, PIM447_SCROLL_SMOOTHING_FACTOR);
+
             /* Report relative X movement */
-            if (delta_x != 0) {
+            if (delta_x != 0)
+            {
                 ret = input_report_rel(data->dev, INPUT_REL_WHEEL, data->smoothed_x, true, K_NO_WAIT);
-                if (ret) {
+                if (ret)
+                {
                     LOG_ERR("Failed to report delta_x: %d", ret);
-                } else {
+                }
+                else
+                {
                     LOG_DBG("Reported delta_x: %d", data->smoothed_x);
                 }
             }
 
             /* Report relative Y movement */
-            if (delta_y != 0) {
+            if (delta_y != 0)
+            {
                 ret = input_report_rel(data->dev, INPUT_REL_HWHEEL, data->smoothed_y, true, K_NO_WAIT);
-                if (ret) {
+                if (ret)
+                {
                     LOG_ERR("Failed to report delta_y: %d", ret);
-                } else {
+                }
+                else
+                {
                     LOG_DBG("Reported delta_y: %d", data->smoothed_y);
                 }
             }
@@ -229,11 +256,15 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     data->sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
     /* Report switch state if it changed */
-    if (data->sw_pressed != data->sw_pressed_prev) {
+    if (data->sw_pressed != data->sw_pressed_prev)
+    {
         ret = input_report_key(data->dev, INPUT_BTN_0, data->sw_pressed ? 1 : 0, true, K_NO_WAIT);
-        if (ret) {
+        if (ret)
+        {
             LOG_ERR("Failed to report key");
-        } else {
+        }
+        else
+        {
             LOG_DBG("Reported key");
         }
 
@@ -252,24 +283,28 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     /* Clear the interrupt */
     uint8_t int_status;
     ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
-    if (ret == 0 && (int_status & MSK_INT_TRIGGERED)) {
+    if (ret == 0 && (int_status & MSK_INT_TRIGGERED))
+    {
         int_status &= ~MSK_INT_TRIGGERED;
         i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
     }
 
     float speed = 0.0f;
 
-    if (delta_x > 0 ||  delta_y > 0) {
+    if (delta_x > 0 || delta_y > 0)
+    {
         // Calculate movement speed
         speed = sqrtf((float)(delta_x * delta_x + delta_y * delta_y));
     }
 
     // Update LEDs based on movement
-    if (speed > 0) {
+    if (speed > 0)
+    {
 
         // Update hue or brightness based on speed
         data->hue += speed * PIM447_HUE_INCREMENT_FACTOR;
-        if (data->hue >= 360.0f) {
+        if (data->hue >= 360.0f)
+        {
             data->hue -= 360.0f;
         }
 
@@ -281,14 +316,16 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 
         // Set the LEDs
         err = pimoroni_pim447_set_leds(dev, r, g, b, w);
-        if (err) {
+        if (err)
+        {
             LOG_ERR("Failed to set LEDs: %d", err);
         }
     }
 }
 
 /* GPIO callback function */
-static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
+static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins)
+{
     struct pimoroni_pim447_data *data = CONTAINER_OF(cb, struct pimoroni_pim447_data, int_gpio_cb);
 
     uint32_t current_time = k_uptime_get();
@@ -303,13 +340,15 @@ static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio
 }
 
 /* Function to enable or disable interrupt output */
-static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config *config, bool enable) {
+static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config *config, bool enable)
+{
     uint8_t int_reg;
     int ret;
 
     /* Read the current INT register value */
     ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_reg);
-    if (ret) {
+    if (ret)
+    {
         LOG_ERR("Failed to read INT register");
         return ret;
     }
@@ -317,15 +356,19 @@ static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config 
     LOG_INF("INT register before changing: 0x%02X", int_reg);
 
     /* Update the MSK_INT_OUT_EN bit */
-    if (enable) {
+    if (enable)
+    {
         int_reg |= MSK_INT_OUT_EN;
-    } else {
+    }
+    else
+    {
         int_reg &= ~MSK_INT_OUT_EN;
     }
 
     /* Write the updated INT register value */
     ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_reg);
-    if (ret) {
+    if (ret)
+    {
         LOG_ERR("Failed to write INT register");
         return ret;
     }
@@ -336,7 +379,8 @@ static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config 
 }
 
 /* Enable function */
-static int pimoroni_pim447_enable(const struct device *dev) {
+static int pimoroni_pim447_enable(const struct device *dev)
+{
     const struct pimoroni_pim447_config *config = dev->config;
     struct pimoroni_pim447_data *data = dev->data;
     int ret;
@@ -344,21 +388,24 @@ static int pimoroni_pim447_enable(const struct device *dev) {
     LOG_INF("pimoroni_pim447_enable called");
 
     /* Check if the interrupt GPIO device is ready */
-    if (!device_is_ready(config->int_gpio.port)) {
+    if (!device_is_ready(config->int_gpio.port))
+    {
         LOG_ERR("Interrupt GPIO device is not ready");
         return -ENODEV;
     }
 
     /* Configure the interrupt GPIO pin */
     ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT | GPIO_PULL_UP);
-    if (ret) {
+    if (ret)
+    {
         LOG_ERR("Failed to configure interrupt GPIO");
         return ret;
     }
 
     /* Configure the GPIO interrupt for falling edge (active low) */
     ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_FALLING);
-    if (ret) {
+    if (ret)
+    {
         LOG_ERR("Failed to configure GPIO interrupt");
         return ret;
     }
@@ -368,16 +415,20 @@ static int pimoroni_pim447_enable(const struct device *dev) {
 
     /* Add the GPIO callback */
     ret = gpio_add_callback(config->int_gpio.port, &data->int_gpio_cb);
-    if (ret) {
+    if (ret)
+    {
         LOG_ERR("Failed to add GPIO callback");
         return ret;
-    } else {
+    }
+    else
+    {
         LOG_INF("GPIO callback added successfully");
     }
-    
+
     /* Enable interrupt output on the trackball */
     ret = pimoroni_pim447_enable_interrupt(config, true);
-    if (ret) {
+    if (ret)
+    {
         LOG_ERR("Failed to enable interrupt output");
         return ret;
     }
@@ -388,7 +439,8 @@ static int pimoroni_pim447_enable(const struct device *dev) {
 }
 
 /* Disable function */
-static int pimoroni_pim447_disable(const struct device *dev) {
+static int pimoroni_pim447_disable(const struct device *dev)
+{
     const struct pimoroni_pim447_config *config = dev->config;
     struct pimoroni_pim447_data *data = dev->data;
     int ret;
@@ -397,14 +449,16 @@ static int pimoroni_pim447_disable(const struct device *dev) {
 
     /* Disable interrupt output on the trackball */
     ret = pimoroni_pim447_enable_interrupt(config, false);
-    if (ret) {
+    if (ret)
+    {
         LOG_ERR("Failed to disable interrupt output");
         return ret;
     }
 
     /* Disable GPIO interrupt */
     ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_DISABLE);
-    if (ret) {
+    if (ret)
+    {
         LOG_ERR("Failed to disable GPIO interrupt");
         return ret;
     }
@@ -417,9 +471,9 @@ static int pimoroni_pim447_disable(const struct device *dev) {
     return 0;
 }
 
-
 /* Device initialization function */
-static int pimoroni_pim447_init(const struct device *dev) {
+static int pimoroni_pim447_init(const struct device *dev)
+{
     const struct pimoroni_pim447_config *config = dev->config;
     struct pimoroni_pim447_data *data = dev->data;
     int ret;
@@ -430,7 +484,8 @@ static int pimoroni_pim447_init(const struct device *dev) {
     data->sw_pressed_prev = false;
 
     /* Check if the I2C device is ready */
-    if (!device_is_ready(config->i2c.bus)) {
+    if (!device_is_ready(config->i2c.bus))
+    {
         LOG_ERR("I2C bus device is not ready");
         return -ENODEV;
     }
@@ -438,13 +493,15 @@ static int pimoroni_pim447_init(const struct device *dev) {
     /* Read and log the chip ID */
     uint8_t chip_id_l, chip_id_h;
     ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_L, &chip_id_l);
-    if (ret) {
+    if (ret)
+    {
         LOG_ERR("Failed to read chip ID low byte");
         return ret;
     }
 
     ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_H, &chip_id_h);
-    if (ret) {
+    if (ret)
+    {
         LOG_ERR("Failed to read chip ID high byte");
         return ret;
     }
@@ -454,13 +511,14 @@ static int pimoroni_pim447_init(const struct device *dev) {
 
     /* Enable the Trackball */
     ret = pimoroni_pim447_enable(dev);
-    if (ret) {
+    if (ret)
+    {
         LOG_ERR("Failed to enable PIM447");
         return ret;
     }
 
     k_work_init(&data->irq_work, pimoroni_pim447_work_handler);
-    
+
     LOG_INF("PIM447 driver initialized");
 
     return 0;
