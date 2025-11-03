@@ -1,5 +1,7 @@
 /* pimoroni_pim447.c - Driver for Pimoroni PIM447 Trackball */
 
+// SEE QMK DRIVER ON HOW TO IMPROVE THIS: https://github.com/qmk/qmk_firmware/blob/master/drivers/sensors/pimoroni_trackball.h
+
 #define DT_DRV_COMPAT zmk_pimoroni_pim447
 
 #include <zephyr/device.h>
