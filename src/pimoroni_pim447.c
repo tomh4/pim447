@@ -223,7 +223,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work)
             pim447_process_movement(data, delta_x, delta_y, time_between_interrupts, PIM447_MOUSE_MAX_SPEED, PIM447_MOUSE_MAX_TIME, PIM447_MOUSE_SMOOTHING_FACTOR);
             // Report X and Y syncrhonously to reduce X/Y Choppiness
 
-            ret = input_report_rel(data->dev, INPUT_REL_X, data->smoothed_x, false, K_FOREVER);
+            ret = input_report_rel(data->dev, INPUT_REL_X, delta_x, false, K_FOREVER);
             if (ret)
             {
                 LOG_ERR("Failed to report delta_x: %d", ret);
@@ -232,7 +232,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work)
             {
                 LOG_DBG("Reported delta_x: %d", data->smoothed_x);
             }
-            ret = input_report_rel(data->dev, INPUT_REL_Y, data->smoothed_y, true, K_FOREVER);
+            ret = input_report_rel(data->dev, INPUT_REL_Y, delta_y, true, K_FOREVER);
             if (ret)
             {
                 LOG_ERR("Failed to report delta_y: %d", ret);
