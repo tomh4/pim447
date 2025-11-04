@@ -7,6 +7,10 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/mutex.h>
 
+#ifndef PIMORONI_TRACKBALL_SCALE
+#    define PIMORONI_TRACKBALL_SCALE 5
+#endif
+
 /* Register Addresses */
 #define REG_LED_RED     0x00
 #define REG_LED_GRN     0x01
@@ -68,5 +72,6 @@ struct pimoroni_pim447_data {
 void pim447_enable_sleep(const struct device *dev);
 void pim447_disable_sleep(const struct device *dev);
 void pim447_toggle_mode(void);
+int16_t pimoroni_trackball_get_offsets(uint8_t negative_dir, uint8_t positive_dir, uint8_t scale);
 
 #endif /* PIMORONI_PIM447_H */

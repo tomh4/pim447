@@ -42,6 +42,9 @@ static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config 
 static int previous_x = 0;
 static int previous_y = 0;
 
+
+static uint16_t precision = 128;
+
 void pim447_enable_sleep(const struct device *dev)
 {
     struct pimoroni_pim447_data *data = dev->data;
@@ -103,6 +106,19 @@ void pim447_toggle_mode(void)
     current_mode = (current_mode == PIM447_MODE_MOUSE) ? PIM447_MODE_SCROLL : PIM447_MODE_MOUSE;
     // Optional: Add logging or LED indication here to show the current mode
     LOG_DBG("PIM447 mode switched to %s", (current_mode == PIM447_MODE_MOUSE) ? "MOUSE" : "SCROLL");
+}
+
+int16_t pimoroni_trackball_get_offsets(uint8_t negative_dir, uint8_t positive_dir, uint8_t scale) {
+    uint8_t offset     = 0;
+    bool    isnegative = false;
+    if (negative_dir > positive_dir) {
+        offset     = negative_dir - positive_dir;
+        isnegative = true;
+    } else {
+        offset = positive_dir - negative_dir;
+    }
+    uint16_t magnitude = (scale * offset * offset * precision) >> 7;
+    return isnegative ? -(int16_t)(magnitude) : (int16_t)(magnitude);
 }
 
 // Event handler for activity state changes
@@ -190,8 +206,14 @@ static void pimoroni_pim447_work_handler(struct k_work *work)
     k_mutex_unlock(&data->data_lock);
 
     /* Calculate deltas */
-    int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
-    int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // DOWN - UP
+    int16_t left = (int16_t)buf[0];
+    int16_t right = (int16_t)buf[1];
+    int16_t up = (int16_t)buf[3];
+    int16_t down = (int16_t)buf[2];
+
+    int16_t delta_x = = pimoroni_trackball_get_offsets(right, left, PIMORONI_TRACKBALL_SCALE);
+    int16_t delta_y = pimoroni_trackball_get_offsets(down, up, PIMORONI_TRACKBALL_SCALE);
+    
 
     /* Report movement immediately if non-zero */
     if (delta_x != 0 || delta_y != 0)
@@ -201,7 +223,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work)
             pim447_process_movement(data, delta_x, delta_y, time_between_interrupts, PIM447_MOUSE_MAX_SPEED, PIM447_MOUSE_MAX_TIME, PIM447_MOUSE_SMOOTHING_FACTOR);
             // Report X and Y syncrhonously to reduce X/Y Choppiness
 
-            ret = input_report_rel(data->dev, INPUT_REL_X, data->smoothed_x, false, K_FOREVER);
+            ret = input_report_rel(data->dev, INPUT_REL_X, delta_x, false, K_FOREVER);
             if (ret)
             {
                 LOG_ERR("Failed to report delta_x: %d", ret);
@@ -210,7 +232,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work)
             {
                 LOG_DBG("Reported delta_x: %d", data->smoothed_x);
             }
-            ret = input_report_rel(data->dev, INPUT_REL_Y, data->smoothed_y, true, K_FOREVER);
+            ret = input_report_rel(data->dev, INPUT_REL_Y, delta_y, true, K_FOREVER);
             if (ret)
             {
                 LOG_ERR("Failed to report delta_y: %d", ret);
