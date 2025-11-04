@@ -211,7 +211,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work)
     int16_t up = (int16_t)buf[3];
     int16_t down = (int16_t)buf[2];
 
-    int16_t delta_x = = pimoroni_trackball_get_offsets(right, left, PIMORONI_TRACKBALL_SCALE);
+    int16_t delta_x = pimoroni_trackball_get_offsets(right, left, PIMORONI_TRACKBALL_SCALE);
     int16_t delta_y = pimoroni_trackball_get_offsets(down, up, PIMORONI_TRACKBALL_SCALE);
     
 
