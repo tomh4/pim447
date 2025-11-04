@@ -208,12 +208,12 @@ static void pimoroni_pim447_work_handler(struct k_work *work)
     /* Calculate deltas */
     int16_t left = (int16_t)buf[0];
     int16_t right = (int16_t)buf[1];
-    int16_t up = (int16_t)buf[3];
-    int16_t down = (int16_t)buf[2];
+    int16_t up = (int16_t)buf[2];
+    int16_t down = (int16_t)buf[3];
 
     int16_t delta_x = pimoroni_trackball_get_offsets(right, left, PIMORONI_TRACKBALL_SCALE);
     int16_t delta_y = pimoroni_trackball_get_offsets(down, up, PIMORONI_TRACKBALL_SCALE);
-    
+
 
     /* Report movement immediately if non-zero */
     if (delta_x != 0 || delta_y != 0)
@@ -223,7 +223,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work)
             pim447_process_movement(data, delta_x, delta_y, time_between_interrupts, PIM447_MOUSE_MAX_SPEED, PIM447_MOUSE_MAX_TIME, PIM447_MOUSE_SMOOTHING_FACTOR);
             // Report X and Y syncrhonously to reduce X/Y Choppiness
 
-            ret = input_report_rel(data->dev, INPUT_REL_X, delta_x, false, K_FOREVER);
+            ret = input_report_rel(data->dev, INPUT_REL_X, data->smoothed_x, false, K_FOREVER);
             if (ret)
             {
                 LOG_ERR("Failed to report delta_x: %d", ret);
@@ -232,7 +232,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work)
             {
                 LOG_DBG("Reported delta_x: %d", data->smoothed_x);
             }
-            ret = input_report_rel(data->dev, INPUT_REL_Y, delta_y, true, K_FOREVER);
+            ret = input_report_rel(data->dev, INPUT_REL_Y, data->smoothed_y, true, K_FOREVER);
             if (ret)
             {
                 LOG_ERR("Failed to report delta_y: %d", ret);
