@@ -147,8 +147,8 @@ static int activity_state_changed_handler(const zmk_event_t *eh)
     return 0;
 }
 
-// ZMK_LISTENER(idle_listener, activity_state_changed_handler);
-// ZMK_SUBSCRIPTION(idle_listener, zmk_activity_state_changed);
+ZMK_LISTENER(idle_listener, activity_state_changed_handler);
+ZMK_SUBSCRIPTION(idle_listener, zmk_activity_state_changed);
 
 static void pim447_process_movement(struct pimoroni_pim447_data *data, int delta_x, int delta_y, uint32_t time_between_interrupts, int max_speed, int max_time, float smoothing_factor)
 {
